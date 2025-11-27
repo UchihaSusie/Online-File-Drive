@@ -1,0 +1,104 @@
+{
+  "containerDefinitions": [
+    {
+      "name": "FileManagementContainer",
+      "image": "577885025398.dkr.ecr.us-west-2.amazonaws.com/file-management-service:latest",
+      "cpu": 0,
+      "links": [],
+      "portMappings": [
+        {
+          "containerPort": 3002,
+          "hostPort": 3002,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "entryPoint": [],
+      "command": [],
+      "environment": [
+        {
+          "name": "PRESIGNED_URL_EXPIRY",
+          "value": "3600"
+        },
+        {
+          "name": "MAX_FILE_SIZE",
+          "value": "104857600"
+        },
+        {
+          "name": "AWS_REGION",
+          "value": "us-west-2"
+        },
+        {
+          "name": "PORT",
+          "value": "3002"
+        },
+        {
+          "name": "JWT_SECRET",
+          "value": "super-secret-cloud-drive-key-xyz123"
+        },
+        {
+          "name": "AUTH_SERVICE_URL",
+          "value": "http://localhost:3000"
+        },
+        {
+          "name": "NODE_ENV",
+          "value": "production"
+        },
+        {
+          "name": "S3_BUCKET_NAME",
+          "value": "6620-cloud-drive-files"
+        },
+        {
+          "name": "MAX_VERSIONS",
+          "value": "3"
+        },
+        {
+          "name": "METADATA_SERVICE_URL",
+          "value": "http://localhost:3001"
+        }
+      ],
+      "environmentFiles": [],
+      "mountPoints": [],
+      "volumesFrom": [],
+      "secrets": [],
+      "dnsServers": [],
+      "dnsSearchDomains": [],
+      "extraHosts": [],
+      "dockerSecurityOptions": [],
+      "dockerLabels": {},
+      "ulimits": [],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/file-management-service",
+          "awslogs-region": "us-west-2",
+          "awslogs-stream-prefix": "file-management"
+        },
+        "secretOptions": []
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "node -e \"require('http').get('http://localhost:3002/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})\""
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "systemControls": [],
+      "credentialSpecs": []
+    }
+  ],
+  "family": "FileManagementStackTaskDefinition0D7049C4",
+  "taskRoleArn": "arn:aws:iam::577885025398:role/FileManagementStack-TaskRole30FC0FBB-pKH99Q2e1Pt4",
+  "executionRoleArn": "arn:aws:iam::577885025398:role/FileManagementStack-TaskExecutionRole250D2532-9MrFQggyTusI",
+  "networkMode": "awsvpc",
+  "volumes": [],
+  "placementConstraints": [],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "256",
+  "memory": "512"
+}
