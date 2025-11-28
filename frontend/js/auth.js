@@ -1,5 +1,6 @@
 // API calls and authentication logic
-const API_BASE_URL = "http://localhost:3000";
+// Uses CONFIG from config.js (make sure to include config.js before this file)
+const API_BASE_URL = typeof CONFIG !== 'undefined' ? CONFIG.AUTH_API_URL : "http://localhost:3000";
 
 // Register
 async function register(name, email, password) {
