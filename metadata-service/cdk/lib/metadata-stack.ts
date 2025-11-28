@@ -230,6 +230,34 @@ export class MetadataServiceStack extends cdk.Stack {
     sortOptionsResource.addMethod('GET', lambdaIntegration);
 
     // ============================================
+    // Folder Routes: /api/folders
+    // ============================================
+    const foldersResource = apiResource.addResource('folders');
+    
+    // POST /api/folders - Create folder
+    foldersResource.addMethod('POST', lambdaIntegration);
+    
+    // GET /api/folders - List all folders
+    foldersResource.addMethod('GET', lambdaIntegration);
+    
+    // /api/folders/{folderId}
+    const folderResource = foldersResource.addResource('{folderId}');
+    
+    // GET /api/folders/{folderId} - Get folder info
+    folderResource.addMethod('GET', lambdaIntegration);
+    
+    // DELETE /api/folders/{folderId} - Delete folder
+    folderResource.addMethod('DELETE', lambdaIntegration);
+    
+    // GET /api/folders/{folderId}/content - List folder contents
+    const contentResource = folderResource.addResource('content');
+    contentResource.addMethod('GET', lambdaIntegration);
+    
+    // POST /api/folders/{folderId}/move - Move folder
+    const moveResource = folderResource.addResource('move');
+    moveResource.addMethod('POST', lambdaIntegration);
+
+    // ============================================
     // Stack Outputs
     // ============================================
     
