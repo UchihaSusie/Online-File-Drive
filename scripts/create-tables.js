@@ -74,6 +74,43 @@ async function createDataTable() {
     }
 }
 
+async function createFilesTable() {
+    const params = {
+        TableName: 'cloud-drive-files',
+        BillingMode: 'PAY_PER_REQUEST',
+        AttributeDefinitions: [
+            { AttributeName: 'fileId', AttributeType: 'S' },
+            { AttributeName: 'userId', AttributeType: 'S' },
+            { AttributeName: 'createdAt', AttributeType: 'S' }
+        ],
+        KeySchema: [
+            { AttributeName: 'fileId', KeyType: 'HASH' }
+        ],
+        GlobalSecondaryIndexes: [
+            {
+                IndexName: 'userId-createdAt-index',
+                KeySchema: [
+                    { AttributeName: 'userId', KeyType: 'HASH' },
+                    { AttributeName: 'createdAt', KeyType: 'RANGE' }
+                ],
+                Projection: { ProjectionType: 'ALL' }
+            }
+        ],
+        Tags: [{ Key: 'Project', Value: 'CloudDrive' }]
+    };
+
+    try {
+        await client.send(new CreateTableCommand(params));
+        console.log('SUCCESS: Files table created!');
+    } catch (error) {
+        if (error.name === 'ResourceInUseException') {
+            console.log('INFO: Files table already exists');
+        } else {
+            console.error('ERROR:', error.message);
+        }
+    }
+}
+
 async function waitForTable(tableName) {
     console.log('Waiting for ' + tableName + '...');
     let isActive = false;
@@ -97,9 +134,11 @@ async function main() {
     console.log('Creating DynamoDB tables...\n');
     await createUsersTable();
     await createDataTable();
+    await createFilesTable();
     console.log('\nWaiting for tables...\n');
     await waitForTable('cloud-drive-users');
     await waitForTable('cloud-drive-data');
+    await waitForTable('cloud-drive-files');
     console.log('\nDone! Tables created.');
 }
 
