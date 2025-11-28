@@ -706,7 +706,7 @@
         };
         shareCell.appendChild(shareBtn);
 
-        // Column 6: Delete button container - NOW USES REAL API
+        // Column 6: Delete button container
         const deleteCell = document.createElement("div");
         deleteCell.className = "file-actions";
         const deleteBtn = document.createElement("button");
@@ -714,21 +714,6 @@
         deleteBtn.textContent = "Delete";
         deleteBtn.onclick = async (e) => {
           e.stopPropagation();
-          // if (!confirm(`Are you sure you want to delete "${item.name}"?`)) {
-          //   return;
-          // }
-          // try {
-          //   if (item.type === "folder") {
-          //     await deleteFolder(item.id);
-          //   } else {
-          //     await deleteFile(item.id);
-          //   }
-          //   console.log(`Deleted: ${item.name}`);
-          //   await renderFileList(currentFolderId);
-          // } catch (error) {
-          //   alert(`Failed to delete: ${error.message}`);
-          //   console.error('Delete error:', error);
-          // }
           showDeleteModal(item);
         };
         deleteCell.appendChild(deleteBtn);
@@ -822,7 +807,7 @@
         document.getElementById("fileInput").click();
       });
 
-      // File selection handler - NOW USES REAL API
+      // File selection handler
       document.getElementById("fileInput").addEventListener("change", async (e) => {
         const files = e.target.files;
         if (files.length > 0) {
@@ -912,7 +897,7 @@
         document.getElementById("folderNameInput").value = "";
       }
 
-      // Create new folder - NOW USES REAL API
+      // Create new folder
       async function createNewFolder(folderName) {
         try {
           // Call real API to create folder
@@ -1024,7 +1009,7 @@
         }
       });
 
-      // Show move modal - NOW USES REAL API DATA
+      // Show move modal
       async function showMoveModal(item) {
         const modal = document.getElementById("moveModal");
         const itemNameEl = document.getElementById("moveItemName");
@@ -1096,7 +1081,7 @@
         modal.style.display = "flex";
       }
 
-      // Move file/folder - NOW USES REAL API
+      // Move file/folder
       async function moveItemToFolder(item, targetFolderId) {
         try {
           if (item.type === "folder") {
