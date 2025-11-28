@@ -249,8 +249,9 @@ router.get('/list', async (req, res) => {
         const userId = req.user.id;
 
         // Validate and normalize sortBy
-        const validSortFields = ['name', 'filename', 'updatedAt', 'updated', 'createdAt', 'created', 'size', 'type', 'mimeType'];
-        if (!validSortFields.includes(sortBy.toLowerCase())) {
+        const validSortFields = ['name', 'filename', 'updatedat', 'updated', 'createdat', 'created', 'size', 'type', 'mimetype'];
+        const sortByLower = sortBy.toLowerCase();
+        if (!validSortFields.includes(sortByLower)) {
             return res.status(400).json({
                 error: 'Bad Request',
                 message: `Invalid sortBy value. Supported: ${validSortFields.join(', ')}`
@@ -272,7 +273,7 @@ router.get('/list', async (req, res) => {
         if (limit > 200) limit = 200;
 
         const results = await searchService.listFilesWithSort(userId, {
-            sortBy,
+            sortBy: sortByLower,
             sortDirection,
             limit,
             folderId: folderId || null

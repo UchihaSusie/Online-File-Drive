@@ -296,9 +296,17 @@ class SearchService {
         const result = await docClient.send(new QueryCommand(queryParams));
         let files = result.Items || [];
 
+        files = files.filter(file => file.type !== 'folder');
+
         // Filter by folderId if provided
         if (folderId) {
-            files = files.filter(file => file.folderId === folderId);
+            if (folderId === 'root') {
+                files = files.filter(file => 
+                    !file.folderId || file.folderId === 'root' || file.folderId === null
+                );
+            } else {
+                files = files.filter(file => file.folderId === folderId);
+            }
         }
 
         // Sort files based on sortBy and sortDirection
