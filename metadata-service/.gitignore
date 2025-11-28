@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# CDK
+cdk/node_modules/
+cdk/cdk.out/
+cdk/dist/
+cdk/*.js
+cdk/*.d.ts
+cdk/**/*.js
+cdk/**/*.d.ts
+
+# Build outputs
+dist/
+build/
+*.js.map
+
+# Deployment outputs
+outputs.json
+cdk.context.json
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
