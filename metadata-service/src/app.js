@@ -15,6 +15,7 @@ const cors = require('cors');
 // Import routes
 const metadataRoutes = require('./routes/metadataRoutes');
 const searchRoutes = require('./routes/searchRoutes');
+const folderMetadataRoutes = require('./routes/folderMetadataRoutes');
 
 // Create Express app
 const app = express();
@@ -114,6 +115,15 @@ app.use('/api/metadata', authMiddleware, metadataRoutes);
 // GET /api/files/search/stats           - Get file statistics
 app.use('/api/files/search', authMiddleware, searchRoutes);
 
+// Folder routes - Folder management for Google Drive-like navigation
+// POST   /api/folders                    - Create folder
+// GET    /api/folders                    - List all folders
+// GET    /api/folders/:folderId          - Get folder info
+// GET    /api/folders/:folderId/content  - List folder contents
+// POST   /api/folders/:folderId/move     - Move folder
+// DELETE /api/folders/:folderId          - Delete folder (recursive)
+app.use('/api/folders', authMiddleware, folderMetadataRoutes);
+
 // ============================================
 // Error Handling
 // ============================================
@@ -156,11 +166,20 @@ if (require.main === module) {
 ║    DELETE /api/metadata/:fileId   - Delete                ║
 ║    GET    /api/metadata?userId=   - List user files       ║
 ╠═══════════════════════════════════════════════════════════╣
-║  Search APIs (Your Core Feature):                         ║
+║  Folder APIs (Google Drive-like):                         ║
+║    POST   /api/folders                 - Create folder    ║
+║    GET    /api/folders                 - List all folders ║
+║    GET    /api/folders/:id             - Get folder info  ║
+║    GET    /api/folders/:id/content     - List contents    ║
+║    POST   /api/folders/:id/move        - Move folder      ║
+║    DELETE /api/folders/:id             - Delete folder    ║
+╠═══════════════════════════════════════════════════════════╣
+║  Search APIs:                                             ║
 ║    GET    /api/files/search?q=       - Search by keyword  ║
 ║    GET    /api/files/search/by-type  - Search by type     ║
 ║    GET    /api/files/search/recent   - Recent uploads     ║
 ║    GET    /api/files/search/stats    - File statistics    ║
+║    GET    /api/files/search/list     - List with sorting  ║
 ╚═══════════════════════════════════════════════════════════╝
         `);
     });

@@ -1,6 +1,6 @@
 # Metadata + Search Service
 
-> This service provides file metadata storage and search functionality for the Cloud Drive application.
+> This service provides file and folder metadata storage, search and sort functionality for the Cloud Drive application.
 
 ## 🏗️ Architecture Overview
 
@@ -31,7 +31,7 @@
 |---------|------|-------|-------------|
 | Auth Service | 3000 | Henny | Provides JWT tokens |
 | Metadata Service | 3001 | Minghui | Stores file metadata, provides search |
-| File Management | 3002 | Roybn | Calls Metadata Service for CRUD |
+| File & Folder Management | 3002 | Roybn & Duo | Calls Metadata Service for CRUD |
 
 **Data Flow:**
 1. User uploads file via File Management Service
@@ -48,7 +48,7 @@
 GET /health
 ```
 
-### Metadata APIs (Used by File Management Service)
+### File Metadata APIs
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -57,6 +57,58 @@ GET /health
 | `PUT` | `/api/metadata/:fileId` | Update file metadata |
 | `DELETE` | `/api/metadata/:fileId` | Delete file metadata |
 | `GET` | `/api/metadata?userId=` | List user's files |
+
+### Folder Metadata APIs
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/folders` | Create a new folder |
+| `GET` | `/api/folders?userId=` | List all user's folders |
+| `GET` | `/api/folders/:folderId` | Get folder info |
+| `GET` | `/api/folders/:folderId/content` | List folder contents (subfolders + files) |
+| `POST` | `/api/folders/:folderId/move` | Move folder to another folder |
+| `DELETE` | `/api/folders/:folderId` | Delete folder (recursive) |
+
+**Folder data structure:**
+```json
+{
+  "folderId": "folder-uuid",
+  "userId": "user-uuid",
+  "name": "Photos",
+  "parentId": "root",  // or another folder's ID
+  "createdAt": "2024-01-01T00:00:00Z",
+  "updatedAt": "2024-01-01T00:00:00Z"
+}
+```
+
+**File-Folder relationship:**
+- Files have a `folderId` field pointing to their parent folder
+- `folderId = null` or `"root"` means file is in root directory
+- Folders have a `parentId` field pointing to their parent folder
+
+**Folder API Examples:**
+```bash
+# Create folder
+curl -X POST "$API_URL/api/folders" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"folderId": "folder-001", "userId": "user-123", "name": "Photos", "parentId": "root"}'
+
+# List all folders
+curl "$API_URL/api/folders?userId=user-123" -H "Authorization: Bearer $TOKEN"
+
+# Get folder content (subfolders + files)
+curl "$API_URL/api/folders/folder-001/content?userId=user-123" -H "Authorization: Bearer $TOKEN"
+
+# Move folder
+curl -X POST "$API_URL/api/folders/folder-001/move" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"targetFolderId": "folder-002", "userId": "user-123"}'
+
+# Delete folder (recursive)
+curl -X DELETE "$API_URL/api/folders/folder-001?userId=user-123" -H "Authorization: Bearer $TOKEN"
+```
 
 ### Search APIs
 
@@ -166,6 +218,15 @@ chmod +x scripts/deploy.sh
 📍 API URL: https://xxxxxxxx.execute-api.us-east-1.amazonaws.com/prod
 ```
 
+**Get your API URL anytime:**
+```bash
+# From outputs.json
+cat outputs.json | grep ApiUrl
+
+# Or from AWS CLI
+aws cloudformation describe-stacks --stack-name MetadataServiceStack \
+  --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' --output text
+```
 
 After deployment, replace the API URL in file-management .env
 
@@ -247,6 +308,57 @@ curl "$API_URL/api/files/search/sort-options" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+### Test Folder APIs
+
+```bash
+# 1. Create folders
+curl -X POST "$API_URL/api/folders" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"folderId": "folder-photos", "userId": "'$USER_ID'", "name": "Photos", "parentId": "root"}'
+
+curl -X POST "$API_URL/api/folders" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"folderId": "folder-docs", "userId": "'$USER_ID'", "name": "Documents", "parentId": "root"}'
+
+# 2. Create a file in Photos folder (simulating upload)
+curl -X POST "$API_URL/api/metadata" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "fileId": "test-file-001",
+    "userId": "'$USER_ID'",
+    "filename": "vacation.jpg",
+    "mimeType": "image/jpeg",
+    "size": 1024000,
+    "folderId": "folder-photos"
+  }'
+
+# 3. View Photos folder content
+curl "$API_URL/api/folders/folder-photos/content?userId=$USER_ID" \
+  -H "Authorization: Bearer $TOKEN"
+
+# 4. Move file to Documents folder
+curl -X PUT "$API_URL/api/metadata/test-file-001" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"folderId": "folder-docs"}'
+
+# 5. Verify file moved
+curl "$API_URL/api/folders/folder-docs/content?userId=$USER_ID" \
+  -H "Authorization: Bearer $TOKEN"
+
+# 6. View root folder content
+curl "$API_URL/api/folders/root/content?userId=$USER_ID" \
+  -H "Authorization: Bearer $TOKEN"
+
+# 7. Cleanup (optional)
+curl -X DELETE "$API_URL/api/metadata/test-file-001" -H "Authorization: Bearer $TOKEN"
+curl -X DELETE "$API_URL/api/folders/folder-photos?userId=$USER_ID" -H "Authorization: Bearer $TOKEN"
+curl -X DELETE "$API_URL/api/folders/folder-docs?userId=$USER_ID" -H "Authorization: Bearer $TOKEN"
+```
+
 ### Add Test Data
 
 ```bash
@@ -269,11 +381,58 @@ node scripts/test-api.js
 
 ---
 
-## 💻 Local Development
+## 💻 Testing & Development
 
-### Option 1: Use AWS DynamoDB (Recommended)
+### Scenario 1: Individual Testing (Test Your Own Code)
 
-This uses the DynamoDB table in AWS but runs the server locally:
+Each developer can deploy and test their own instance:
+
+```bash
+cd metadata-service
+
+# 1. Deploy to AWS
+AWS_PROFILE=your-profile ./scripts/deploy.sh
+
+# 2. After deployment, you'll see your API URL:
+#    🎉 Deployment Successful!
+#    📍 API URL: https://xxxxxxxx.execute-api.us-east-1.amazonaws.com/prod
+
+# 3. Test your API directly
+API_URL="https://xxxxxxxx.execute-api.us-east-1.amazonaws.com/prod"
+curl "$API_URL/health"
+```
+
+### Scenario 2: Integration Testing (With User Auth and File-Management Service)
+
+When testing the full system together:
+
+```bash
+npm install
+node scripts/create-tables.js
+
+# In backend/ Run user auth service
+node src/index.js
+
+# In file-management/.env
+METADATA_SERVICE_URL=https://xxxxxxxx.execute-api.us-east-1.amazonaws.com/prod
+
+# Then run file-management service
+cd file-management
+npm start
+```
+
+**Test the integration:**
+```bash
+# Upload a file (file-management will call metadata-service automatically)
+curl -X POST http://localhost:3002/api/files/upload \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@photo.jpg" \
+  -F "folderId=folder-001"
+```
+
+### Scenario 3: Local (For Code Changes)
+
+When you're modifying code and want to test quickly without deploying:
 
 ```bash
 cd metadata-service
@@ -289,6 +448,8 @@ npm run local
 
 Server runs at `http://localhost:3001`
 
+> **Note:** Local server still uses AWS DynamoDB for data storage. Make sure your AWS credentials are configured.
+
 ---
 
 ## 📁 Project Structure
@@ -302,10 +463,11 @@ metadata-service/
 │   ├── app.js                
 │   ├── lambda.js             
 │   ├── routes/
-│   │   ├── metadataRoutes.js # CRUD endpoints
-│   │   └── searchRoutes.js   # Search endpoints
+│   │   ├── metadataRoutes.js     # File metadata CRUD
+│   │   ├── folderMetadataRoutes.js # Folder metadata CRUD
+│   │   └── searchRoutes.js       # Search & sort endpoints
 │   └── services/
-│       └── searchService.js  # Search & Sort logic
+│       └── searchService.js      # Search & sort logic
 ├── scripts/
 │   ├── deploy.sh             # AWS deployment script
 │   ├── local-start.sh        # Local dev server
