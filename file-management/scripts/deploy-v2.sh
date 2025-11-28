@@ -1,16 +1,6 @@
 #!/bin/bash
 set -e
 
-###############################################
-# 🔐 Load AWS Credentials from .env
-###############################################
-if [ -f "../../.env" ]; then
-    echo "🔐 Loading AWS credentials from .env..."
-    export $(grep -v '^#' ../../.env | xargs)
-fi
-echo "🔐 AWS Account Loaded: $AWS_ACCESS_KEY_ID"
-###############################################
-
 echo "🚀 Starting File Management Service Deployment..."
 echo ""
 

@@ -19,117 +19,6 @@ const upload = multer({
     }
 });
 
-
-/**
- * Create folder
- * POST /api/files/folders
- */
-router.post('/folders', authenticate, async (req, res, next) => {
-    try {
-        const { name, parentId } = req.body;
-
-        const folderPayload = {
-            folderId: fileService.generateFileId(),
-            userId: req.user.id,
-            name,
-            parentId: parentId || 'root',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
-
-        await metadataClient.createFolder(folderPayload, req.token);
-
-        successResponse(res, 201, 'Folder created successfully', folderPayload);
-
-    } catch (err) {
-        next(err);
-    }
-});
-
-
-// Get folder info (for back navigation)
-router.get('/folders/:folderId/info', authenticate, async (req, res, next) => {
-    try {
-        const folder = await metadataClient.getFolder(
-            req.params.folderId,
-            req.token
-        );
-        successResponse(res, 200, 'Folder info', folder);
-    } catch (err) {
-        next(err);
-    }
-});
-
-
-// List all folders for this user (for move dropdown)
-router.get('/folders', authenticate, async (req, res, next) => {
-    try {
-        const folders = await metadataClient.listAllFolders(
-            req.user.id,
-            req.token
-        );
-        successResponse(res, 200, 'All folders', folders);
-    } catch (err) {
-        next(err);
-    }
-});
-
-/**
- * List folder content
- * GET /api/files/folders/:folderId
- */
-router.get('/folders/:folderId', authenticate, async (req, res, next) => {
-    try {
-        const { folderId } = req.params;
-
-        const result = await metadataClient.listFolderContent(
-            req.user.id,
-            folderId,
-            req.token
-        );
-
-        successResponse(res, 200, 'Folder content retrieved', result);
-
-    } catch (error) {
-        next(error);
-    }
-});
-
-
-// Move folder to another folder
-router.post('/folders/:folderId/move', authenticate, async (req, res, next) => {
-    try {
-        const { folderId } = req.params;
-        const { targetFolderId } = req.body;
-
-        await metadataClient.moveFolder(
-            folderId,
-            targetFolderId,
-            req.user.id,
-            req.token
-        );
-
-        successResponse(res, 200, 'Folder moved');
-    } catch (err) {
-        next(err);
-    }
-});
-
-// Delete folder
-router.delete('/folders/:folderId', authenticate, async (req, res, next) => {
-    try {
-        await metadataClient.deleteFolder(
-            req.params.folderId,
-            req.user.id,
-            req.token
-        );
-
-        successResponse(res, 200, 'Folder deleted');
-    } catch (err) {
-        next(err);
-    }
-});
-
 /**
  * Upload file
  * POST /api/files/upload
@@ -409,38 +298,6 @@ router.delete('/:fileId', authenticate, async (req, res, next) => {
 });
 
 /**
- * Move file to folder
- * POST /api/files/:fileId/move
- */
-router.post('/:fileId/move', authenticate, async (req, res, next) => {
-    try {
-        const { fileId } = req.params;
-        const { targetFolderId } = req.body;
-
-        const metadata = await metadataClient.getMetadata(fileId, req.token);
-
-        if (metadata.userId !== req.user.id) {
-            return errorResponse(res, 403, 'Access denied', 'ACCESS_DENIED');
-        }
-
-        await metadataClient.updateMetadata(
-            fileId,
-            {
-                folderId: targetFolderId,
-                updatedAt: new Date().toISOString()
-            },
-            req.token
-        );
-
-        successResponse(res, 200, 'File moved successfully');
-
-    } catch (error) {
-        next(error);
-    }
-});
-
-
-/**
  * List user's files
  * GET /api/files
  */
@@ -460,6 +317,5 @@ router.get('/', authenticate, async (req, res, next) => {
         next(error);
     }
 });
-
 
 module.exports = router;

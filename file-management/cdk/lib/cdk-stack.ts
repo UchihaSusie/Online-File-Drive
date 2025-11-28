@@ -27,7 +27,7 @@ export class CdkStack extends cdk.Stack {
     // S3 Bucket for File Storage
     // ========================================
     this.fileStorageBucket = new s3.Bucket(this, 'FileStorageBucket', {
-      bucketName: `6620-cloud-drive-files-${this.account}`,
+      bucketName: `6620-cloud-drive-files`,
       versioned: false,
       encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -189,7 +189,7 @@ export class CdkStack extends cdk.Stack {
     this.loadBalancer = new elbv2.ApplicationLoadBalancer(this, 'LoadBalancer', {
       vpc,
       internetFacing: true,
-      // loadBalancerName: 'file-management-alb',
+      loadBalancerName: 'file-management-alb',
     });
 
     const listener = this.loadBalancer.addListener('HttpListener', {
@@ -205,13 +205,6 @@ export class CdkStack extends cdk.Stack {
       taskDefinition,
       serviceName: 'file-management-service',
       desiredCount: 1,
-      
-
-      capacityProviderStrategies: [{
-        capacityProvider: "FARGATE",
-        weight: 1
-      }],
-
       assignPublicIp: false,
       vpcSubnets: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
