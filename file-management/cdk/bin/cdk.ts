@@ -10,8 +10,8 @@ const metadataServiceUrl = app.node.tryGetContext('metadataServiceUrl') || proce
 const jwtSecret = app.node.tryGetContext('jwtSecret') || process.env.JWT_SECRET || 'super-secret-cloud-drive-key-xyz123';
 
 new CdkStack(app, 'FileManagementStack', {
-  env: { 
-    account: process.env.CDK_DEFAULT_ACCOUNT, 
+  env: {
+    account: process.env.CDK_DEFAULT_ACCOUNT || process.env.AWS_ACCOUNT_ID || '577885025398',
     region: process.env.CDK_DEFAULT_REGION || 'us-west-2'
   },
   authServiceUrl,

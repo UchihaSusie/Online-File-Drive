@@ -107,6 +107,81 @@ class MetadataClient {
             throw new Error('Failed to list user files');
         }
     }
+
+    /**
+     * Create folder
+     */
+    async createFolder(payload, token) {
+        try {
+            const response = await axios.post(
+                `${METADATA_SERVICE_URL}/api/folders`,
+                payload,
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
+            return response.data.folder;
+        } catch (err) {
+            throw new Error('Failed to create folder');
+        }
+    }
+
+    /**
+     * List folder content
+     */
+    async listFolderContent(userId, folderId, token) {
+        try {
+            const response = await axios.get(
+                `${METADATA_SERVICE_URL}/api/folders/${folderId}/content`,
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                    params: { userId }
+                }
+            );
+            return response.data;
+        } catch (err) {
+            throw new Error('Failed to list folder content');
+        }
+    }
+
+    /**
+     * Get folder info
+     */
+    async getFolder(folderId, token) {
+        const res = await axios.get(`${METADATA_SERVICE_URL}/api/folders/${folderId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        return res.data.folder;
+    }
+
+    /**     * List all folders for a user
+     */
+    async listAllFolders(userId, token) {
+        const res = await axios.get(`${METADATA_SERVICE_URL}/api/folders`, {
+            headers: { Authorization: `Bearer ${token}` },
+            params: { userId }
+        });
+        return res.data.folders;
+    }
+
+    /**     * Move folder to another folder
+     */
+    async moveFolder(folderId, targetFolderId, userId, token) {
+        await axios.post(
+            `${METADATA_SERVICE_URL}/api/folders/${folderId}/move`,
+            { targetFolderId, userId },
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+    }
+
+    /**     * Delete folder
+     */
+    async deleteFolder(folderId, userId, token) {
+        await axios.delete(`${METADATA_SERVICE_URL}/api/folders/${folderId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            params: { userId }
+        });
+    }
 }
 
 module.exports = new MetadataClient();
