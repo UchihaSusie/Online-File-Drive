@@ -1,0 +1,28 @@
+{
+  "name": "metadata-service",
+  "version": "1.0.0",
+  "description": "Metadata and Search Service for Cloud Drive - Lambda + API Gateway + DynamoDB",
+  "main": "src/lambda.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "seed": "node scripts/seed-test-data.js",
+    "test-api": "node scripts/test-api.js",
+    "local": "NODE_ENV=development node src/app.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.490.0",
+    "@aws-sdk/lib-dynamodb": "^3.490.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "serverless-http": "^3.2.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+
