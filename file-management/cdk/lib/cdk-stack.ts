@@ -16,7 +16,6 @@ export interface FileManagementStackProps extends cdk.StackProps {
 
 export class CdkStack extends cdk.Stack {
   public readonly fileStorageBucket: s3.Bucket;
-  public readonly ecrRepository: ecr.Repository;
   public readonly ecsService: ecs.FargateService;
   public readonly loadBalancer: elbv2.ApplicationLoadBalancer;
 
@@ -55,19 +54,11 @@ export class CdkStack extends cdk.Stack {
     });
 
     // ========================================
-    // ECR Repository
+    // Docker Image Asset (CDK builds and pushes automatically)
     // ========================================
-    this.ecrRepository = new ecr.Repository(this, 'FileManagementRepository', {
-      repositoryName: 'file-management-service',
-      imageScanOnPush: true,
-      imageTagMutability: ecr.TagMutability.MUTABLE,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      lifecycleRules: [
-        {
-          description: 'Keep only 10 images',
-          maxImageCount: 10,
-        },
-      ],
+    const dockerImage = new cdk.aws_ecr_assets.DockerImageAsset(this, 'FileManagementImage', {
+      directory: '../',  // Points to file-management/ directory containing Dockerfile
+      platform: cdk.aws_ecr_assets.Platform.LINUX_AMD64,
     });
 
     // ========================================
@@ -161,9 +152,9 @@ export class CdkStack extends cdk.Stack {
     }
 
     // Container Definition
-    // Use ECR repository image - will be built and pushed before deployment
+    // Use Docker image asset (CDK automatically built and pushed this)
     const container = taskDefinition.addContainer('FileManagementContainer', {
-      image: ecs.ContainerImage.fromEcrRepository(this.ecrRepository, 'latest'),
+      image: ecs.ContainerImage.fromDockerImageAsset(dockerImage),
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'file-management',
         logGroup: logGroup,
@@ -268,14 +259,9 @@ export class CdkStack extends cdk.Stack {
       exportName: 'FileStorageBucketName',
     });
 
-    new cdk.CfnOutput(this, 'ECRRepositoryUri', {
-      value: this.ecrRepository.repositoryUri,
-      description: 'ECR Repository URI',
-    });
-
-    new cdk.CfnOutput(this, 'ECRRepositoryName', {
-      value: this.ecrRepository.repositoryName,
-      description: 'ECR Repository Name',
+    new cdk.CfnOutput(this, 'DockerImageUri', {
+      value: dockerImage.imageUri,
+      description: 'Docker Image URI (CDK-managed ECR)',
     });
   }
 }

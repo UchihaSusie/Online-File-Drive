@@ -709,62 +709,87 @@ tail -f /tmp/file-mgmt-service.log
 
 ### Deploy to AWS (Complete Infrastructure)
 
-Deploy everything (ECR, ECS, S3, VPC, Load Balancer) with one command:
+Deploy everything (ECR, ECS, S3, VPC, Load Balancer) using CDK:
 
 ```bash
-./scripts/deploy.sh
+cd cdk
+npm install
+npm run build
+cdk deploy
 ```
 
 **What happens:**
-1. ✅ Checks AWS credentials and bootstraps CDK
-2. ✅ Deploys infrastructure (takes ~10-15 minutes)
-3. ✅ Builds Docker image (`linux/amd64`)
-4. ✅ Pushes to ECR
-5. ✅ Updates ECS service
-6. ✅ Shows service URL and commands
+1. ✅ CDK automatically builds Docker image locally (`linux/amd64`)
+2. ✅ Creates CDK-managed ECR repository
+3. ✅ Pushes Docker image to ECR
+4. ✅ Deploys infrastructure (takes ~10-15 minutes)
+5. ✅ Starts ECS service with the pushed image
+6. ✅ Shows service URL in outputs
 
 **What gets deployed:**
-- **S3 Bucket**: `6620-cloud-drive-files` (encrypted storage)
-- **ECR Repository**: `file-management-service`
-- **ECS Fargate**: Auto-scaling (1-10 tasks)
-- **Application Load Balancer**: Public endpoint
-- **VPC**: 2 AZs with public/private subnets
-- **CloudWatch Logs**: `/ecs/file-management-service`
+- **S3 Bucket**: `6620-cloud-drive-files` (encrypted storage, auto-delete on destroy)
+- **ECR Repository**: CDK-managed container registry (auto-delete images on destroy)
+- **ECS Fargate**: Auto-scaling (1-10 tasks), CPU & memory based
+- **Application Load Balancer**: Public endpoint on port 80
+- **VPC**: 2 AZs with public/private subnets, 1 NAT Gateway
+- **CloudWatch Logs**: `/ecs/file-management-service` (7-day retention)
 
 ### After Deployment
 
-**Get service URL:**
+**Service URL is shown in CDK output:**
+```
+Outputs:
+FileManagementStack.ServiceUrl = http://file-management-alb-xxxxx.us-west-2.elb.amazonaws.com
+```
+
+**Or retrieve it anytime with:**
 ```bash
-aws cloudformation describe-stacks --stack-name FileManagementStack \
+aws cloudformation describe-stacks \
+  --stack-name FileManagementStack \
+  --region us-west-2 \
   --query 'Stacks[0].Outputs[?OutputKey==`ServiceUrl`].OutputValue' \
   --output text
 ```
 
 **Test health endpoint:**
 ```bash
+# Using the URL from CDK output
 curl http://YOUR-ALB-DNS/health
+
+# Or in one command
+curl $(aws cloudformation describe-stacks \
+  --stack-name FileManagementStack \
+  --region us-west-2 \
+  --query 'Stacks[0].Outputs[?OutputKey==`ServiceUrl`].OutputValue' \
+  --output text)/health
 ```
 
 **View logs:**
 ```bash
-aws logs tail /ecs/file-management-service --follow
+aws logs tail /ecs/file-management-service --follow --region us-west-2
 ```
 
 **Check service status:**
 ```bash
 aws ecs describe-services \
   --cluster file-management-cluster \
-  --services file-management-service
+  --services file-management-service \
+  --region us-west-2
 ```
 
 ### Update Deployed Service
 
-After code changes, redeploy:
+After code changes, redeploy (CDK automatically rebuilds and pushes new image):
 ```bash
-./scripts/deploy.sh
+cd cdk
+cdk deploy
 ```
 
-This rebuilds and pushes the new image with zero downtime.
+CDK will:
+- Rebuild Docker image with your changes
+- Push new image to ECR
+- Update ECS task definition
+- Perform rolling deployment (zero downtime)
 
 ### Destroy AWS Resources
 
@@ -774,28 +799,56 @@ Remove all deployed infrastructure:
 cd cdk
 cdk destroy
 ```
-```
+
+**What gets deleted:**
+- ✅ ECR repository (all images automatically deleted via `emptyOnDelete: true`)
+- ✅ S3 bucket (all files automatically deleted via `autoDeleteObjects: true`)
+- ✅ ECS cluster, service, and tasks
+- ✅ Application Load Balancer
+- ✅ VPC, subnets, NAT gateway
+- ✅ CloudWatch log groups
+- ✅ IAM roles and policies
+
+**Note:** Both the ECR repository and S3 bucket are configured with `DESTROY` removal policy, so all images and files will be automatically cleaned up when the stack is destroyed.
 
 ### Configuration
 
-**Optional environment variables** (set before deployment):
+**Optional environment variables** (set before `cdk deploy`):
 ```bash
 export AUTH_SERVICE_URL=http://your-auth-service
 export METADATA_SERVICE_URL=http://your-metadata-service
 export JWT_SECRET=your-secret-key
 ```
 
+These can also be passed via CDK context:
+```bash
+cdk deploy \
+  --context authServiceUrl=http://your-auth \
+  --context metadataServiceUrl=http://your-metadata \
+  --context jwtSecret=your-secret
+```
+
 ### Troubleshooting
 
 **Service won't start:**
 ```bash
-aws logs tail /ecs/file-management-service --follow
+aws logs tail /ecs/file-management-service --follow --region us-west-2
+```
+
+**Docker build issues:**
+```bash
+# CDK builds Docker locally, check Docker is running
+docker ps
+
+# View CDK synth to see generated CloudFormation
+cdk synth
 ```
 
 **Health check failing:**
 - Verify container port is 3002
-- Check security groups
-- Verify environment variables
+- Check security groups allow ALB → ECS communication
+- Verify environment variables in task definition
+- Check ECS service events: `aws ecs describe-services ...`
 
 For detailed CDK documentation, see [cdk/README.md](./cdk/README.md)
 

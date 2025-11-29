@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+# Get the directory where the script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Navigate to file-management root (parent of scripts/)
+cd "$SCRIPT_DIR/.."
+
 echo "🚀 Starting File Management Service Deployment..."
 echo ""
 
@@ -22,66 +27,29 @@ fi
 
 echo -e "${GREEN}📦 AWS Account: $CDK_DEFAULT_ACCOUNT${NC}"
 echo -e "${GREEN}🌍 Region: $CDK_DEFAULT_REGION${NC}"
-
-# Export service URLs from .env if they exist (for AWS deployment)
-if [ -f "../.env" ]; then
-    echo "📋 Loading service URLs from .env..."
-    export AUTH_SERVICE_URL=$(grep '^AUTH_SERVICE_URL=' ../.env | cut -d '=' -f2)
-    export METADATA_SERVICE_URL=$(grep '^METADATA_SERVICE_URL=' ../.env | cut -d '=' -f2)
-    
-    # Only show URLs if they're not localhost (meaning they're AWS URLs)
-    if [[ "$AUTH_SERVICE_URL" != *"localhost"* ]] && [ -n "$AUTH_SERVICE_URL" ]; then
-        echo -e "${GREEN}🔗 Auth Service: $AUTH_SERVICE_URL${NC}"
-    else
-        echo -e "${YELLOW}⚠️  Warning: AUTH_SERVICE_URL not set or using localhost. Update .env with AWS URL.${NC}"
-    fi
-    
-    if [[ "$METADATA_SERVICE_URL" != *"localhost"* ]] && [ -n "$METADATA_SERVICE_URL" ]; then
-        echo -e "${GREEN}🔗 Metadata Service: $METADATA_SERVICE_URL${NC}"
-    else
-        echo -e "${YELLOW}⚠️  Warning: METADATA_SERVICE_URL not set or using localhost. Update .env with AWS URL.${NC}"
-    fi
-fi
 echo ""
 
 # ========================================
-# PHASE 1: Create ECR Repository Only
+# PHASE 1: Deploy ECR Repository
 # ========================================
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}   PHASE 1: Create ECR Repository${NC}"
+echo -e "${BLUE}   PHASE 1: Deploy ECR Repository${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
-# Check if CDK is bootstrapped
-echo "🔍 Checking CDK bootstrap status..."
-if ! aws cloudformation describe-stacks --stack-name CDKToolkit --region $CDK_DEFAULT_REGION >/dev/null 2>&1; then
-    echo -e "${YELLOW}⚠️  CDK not bootstrapped. Running bootstrap...${NC}"
-    cd cdk
-    cdk bootstrap aws://$CDK_DEFAULT_ACCOUNT/$CDK_DEFAULT_REGION
-    cd ..
-else
-    echo -e "${GREEN}✅ CDK already bootstrapped${NC}"
-fi
-echo ""
+cd cdk
+npm install --silent
+npm run build
 
-# Check if ECR repository exists, if not create just the ECR part
-echo "🔍 Checking ECR repository..."
-ECR_REPO=$(aws ecr describe-repositories --repository-names file-management-service --region $CDK_DEFAULT_REGION 2>/dev/null || echo "")
-
-if [ -z "$ECR_REPO" ]; then
-    echo -e "${YELLOW}⚠️  ECR repository doesn't exist, creating it...${NC}"
-    aws ecr create-repository --repository-name file-management-service --region $CDK_DEFAULT_REGION --image-scanning-configuration scanOnPush=true >/dev/null 2>&1
-    echo -e "${GREEN}✅ ECR repository created${NC}"
-else
-    echo -e "${GREEN}✅ ECR repository exists${NC}"
-fi
-echo ""
+echo "☁️  Deploying ECR stack..."
+cdk deploy FileManagementEcrStack --require-approval never
 
 ECR_URI=$(aws ecr describe-repositories --repository-names file-management-service --region $CDK_DEFAULT_REGION --query 'repositories[0].repositoryUri' --output text)
 echo -e "${GREEN}🐳 ECR Repository: $ECR_URI${NC}"
+cd ..
 echo ""
 
-echo -e "${GREEN}✅ Phase 1 Complete: ECR repository ready${NC}"
+echo -e "${GREEN}✅ Phase 1 Complete${NC}"
 echo ""
 
 # ========================================
@@ -136,24 +104,13 @@ echo ""
 # PHASE 3: Deploy Full Infrastructure
 # ========================================
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}   PHASE 3: Deploy Full Infrastructure (S3, VPC, ECS)${NC}"
+echo -e "${BLUE}   PHASE 3: Deploy Full Infrastructure${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
-# Install CDK dependencies
-echo "📦 Installing CDK dependencies..."
+echo "☁️  Deploying ECS, VPC, S3, and Load Balancer..."
 cd cdk
-npm install --silent
-echo ""
-
-# Build CDK
-echo "🏗️  Building CDK..."
-npm run build
-echo ""
-
-# Deploy CDK stack
-echo "☁️  Deploying full infrastructure..."
-cdk deploy --require-approval never
+cdk deploy FileManagementStack --require-approval never
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ CDK deployment failed${NC}"
