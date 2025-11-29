@@ -34,40 +34,6 @@ cd file-management/scripts
 
 **Deployment time:** ~10-15 minutes
 
-## Service Integration Requirements
-
-### Metadata Service Integration
-
-The file-management service **requires** a metadata service to store file information. Configure via environment variables:
-
-**Required Environment Variables:**
-```bash
-METADATA_SERVICE_URL=http://your-metadata-service-url
-AUTH_SERVICE_URL=http://your-auth-service-url
-JWT_SECRET=your-jwt-secret
-```
-
-**Metadata Service Endpoints Required:**
-- `POST /api/metadata` - Create file metadata
-- `GET /api/metadata/:fileId` - Get file metadata
-- `PUT /api/metadata/:fileId` - Update file metadata
-- `DELETE /api/metadata/:fileId` - Delete file metadata
-- `GET /api/metadata?userId=xxx` - List user files
-
-**Expected Response Format:**
-```json
-{
-  "message": "Success message",
-  "metadata": {
-    "fileId": "...",
-    "userId": "...",
-    "filename": "...",
-    "size": 123,
-    "currentVersion": 1,
-    "versions": [...]
-  }
-}
-```
 
 **For Local Testing:**
 Use the included mock metadata service:
