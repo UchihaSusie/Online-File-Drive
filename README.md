@@ -1,90 +1,111 @@
-# Cloud Drive – Local Development Guide
+# Cloud Drive - Authentication Service
 
-## 1. Install Dependencies
+User authentication with JWT and DynamoDB.
 
-The helper script will run `npm install` where necessary, but you can pre-install:
-
-```
-cd backend && npm install
-
-cd file-management && npm install
-
-cd metadata-service && npm install
-```
----
-
-## 2. Configure AWS Credentials
-
-The local stack expects an AWS profile and default region `us-east-1`.
-
-export AWS_PROFILE=your_profile_name
-
-export AWS_REGION=us-east-1
-
-(Override these before running the start script if you use different values.)
-
----
-
-## 3. Start the Entire Stack
-
-You can deploy services to AWS using `file-management/scripts/deploy-v2.sh` and `metadata-service/scripts/deploy.sh`(See Readme.md under each folder), and start:
-- Auth Service (`backend/src/index.js`) on **3000**
-- Frontend (`python3 -m http.server`) on **8080**
-
-Or use the helper script in the repo root to run locally.
-
-First, deploy metadata-service, in your terminal, run:
-```
-cd metadata-service
-
-./scripts/deploy.sh
-```
-In `start-all.sh`, replace `METADATA_SERVICE_URL` with the URL you get after you deploy the service.
-Then:
-```
-./start-all.sh
+## Local Development
+```bash
+cd backend
+npm install
+node scripts/create-tables.js  # First time only
+node src/index.js
 ```
 
-It:
-1. Kills anything running on ports 3000, 3002, and 8080
-2. Installs dependencies for services if needed
-3. Starts:
-   - Auth Service (`backend/src/index.js`) on **3000**
-   - File Management Service (`file-management/src/app.js`) on **3002**
-   - Frontend (`python3 -m http.server`) on **8080**
-4. Creates a `.env` for the File Management service pointing to:
-   - `AUTH_SERVICE_URL=http://localhost:3000`
-   - `METADATA_SERVICE_URL=`(Replace with the URL you get after you deploy metadata service)
-   - **Metadata Service URL**: To use a local Metadata service, start it (`cd metadata-service && npm start`) and update the `.env` accordingly.
-   - `S3_BUCKET_NAME=6620-cloud-drive-files` (ensure this bucket exists)
-   - `AWS_REGION=us-east-1`
+Server runs on: http://localhost:3000
 
-The script prints log locations (`/tmp/auth-service.log`, etc.) and opens `http://localhost:8080`.
+## API Endpoints
 
----
-
-## 6. Use the App
-
-Open your browser to `http://localhost:8080`:
-
-- Register or log in (Auth service)
-- Upload/download/move files and folders (File Management + S3)
-- Search and sort files (Metadata/Search service via deployed API Gateway)
-
-Watch the log files for troubleshooting.
-
----
-
-## 7. Stop All Services
-
-Press `Ctrl+C` in the terminal running `start-all.sh`, 
-
-or run:
-
-```
-./stop-all.sh
+**Register:** `POST /api/auth/register`
+```json
+{"email": "user@example.com", "password": "pass123", "name": "Name"}
 ```
 
-This script reads service PIDs from `/tmp/cloud-drive-pids.txt` and stops them.
+**Login:** `POST /api/auth/login`
+```json
+{"email": "user@example.com", "password": "pass123"}
+```
 
----
+**Profile:** `GET /api/auth/profile`
+```
+Header: Authorization: Bearer <token>
+```
+
+## Testing Locally
+
+Register a user:
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123","name":"Test User"}'
+```
+
+Login:
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
+```
+
+Get profile (use token from login):
+```bash
+curl http://localhost:3000/api/auth/profile \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+## For Team Integration
+
+JWT Secret: `super-secret-cloud-drive-key-xyz123`
+
+To verify tokens in your service:
+```javascript
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = 'super-secret-cloud-drive-key-xyz123';
+
+jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Invalid token' });
+    // user.userId = authenticated user's ID
+    // user.email = user's email
+});
+```
+
+## AWS Resources
+
+DynamoDB Tables (already created):
+- cloud-drive-users
+- cloud-drive-data
+
+AWS Console Login: https://577885025398.signin.aws.amazon.com/console
+
+Region: us-east-1
+
+## Deploy to AWS (Optional)
+```bash
+cd infrastructure
+cdk deploy
+```
+
+Note: CDK deployment configured but currently in testing. Local service fully functional.
+
+## Project Structure
+```
+backend/
+├── src/
+│   ├── index.js          # Auth service code
+│   └── lambda.js         # Lambda handler
+├── scripts/
+│   └── create-tables.js  # DynamoDB setup
+├── package.json
+└── README.md
+
+infrastructure/
+├── lib/
+│   └── infrastructure-stack.js  # CDK stack definition
+└── bin/
+    └── infrastructure.js        # CDK app entry
+```
+
+## Notes
+
+- Tokens expire in 7 days
+- Storage quota: 5GB per user
+- Passwords hashed with bcrypt
+- Don't commit `.env` to git
