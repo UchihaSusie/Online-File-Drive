@@ -94,13 +94,13 @@ async function deleteFile(fileId) {
 // Move file to folder
 async function moveFile(fileId, targetFolderId) {
     const token = getToken();
-    const response = await fetch(`${CONFIG.FILE_API_URL}/api/files/${fileId}/move`, {
-        method: 'POST',
+    const response = await fetch(`${CONFIG.METADATA_API_URL}/api/metadata/${fileId}`, {
+        method: 'PUT',
         headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ targetFolderId })
+        body: JSON.stringify({folderId: targetFolderId === 'root' ? null : targetFolderId})
     });
 
     const data = await response.json();
@@ -111,19 +111,24 @@ async function moveFile(fileId, targetFolderId) {
 }
 
 // ============================================
-// Folder Operations (via File Management Service)
+// Folder Operations (via Metadata Service)
 // ============================================
 
 // Create folder
 async function createFolder(name, parentId = 'root') {
     const token = getToken();
-    const response = await fetch(`${CONFIG.FILE_API_URL}/api/files/folders`, {
+    const user = getUser();
+    if (!user || !user.id) {
+        throw new Error('User ID not found. Please log in again.');
+    }
+    const folderId = `folder-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const response = await fetch(`${CONFIG.METADATA_API_URL}/api/folders`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ name, parentId })
+        body: JSON.stringify({ folderId, userId: user.id, name, parentId })
     });
 
     const data = await response.json();
@@ -136,7 +141,11 @@ async function createFolder(name, parentId = 'root') {
 // List all folders
 async function listFolders() {
     const token = getToken();
-    const response = await fetch(`${CONFIG.FILE_API_URL}/api/files/folders`, {
+    const user = getUser();
+    if (!user || !user.id) {
+        throw new Error('User ID not found. Please log in again.');
+    }
+    const response = await fetch(`${CONFIG.METADATA_API_URL}/api/folders?userId=${user.id}`, {
         headers: {
             'Authorization': `Bearer ${token}`
         }
@@ -152,7 +161,11 @@ async function listFolders() {
 // Get folder content (subfolders + files)
 async function getFolderContent(folderId) {
     const token = getToken();
-    const response = await fetch(`${CONFIG.FILE_API_URL}/api/files/folders/${folderId}`, {
+    const user = getUser();
+    if (!user || !user.id) {
+        throw new Error('User ID not found. Please log in again.');
+    }
+    const response = await fetch(`${CONFIG.METADATA_API_URL}/api/folders/${folderId}/content?userId=${user.id}`, {
         headers: {
             'Authorization': `Bearer ${token}`
         }
@@ -168,7 +181,7 @@ async function getFolderContent(folderId) {
 // Get folder info
 async function getFolderInfo(folderId) {
     const token = getToken();
-    const response = await fetch(`${CONFIG.FILE_API_URL}/api/files/folders/${folderId}/info`, {
+    const response = await fetch(`${CONFIG.METADATA_API_URL}/api/folders/${folderId}/info`, {
         headers: {
             'Authorization': `Bearer ${token}`
         }
@@ -184,13 +197,17 @@ async function getFolderInfo(folderId) {
 // Move folder
 async function moveFolder(folderId, targetFolderId) {
     const token = getToken();
-    const response = await fetch(`${CONFIG.FILE_API_URL}/api/files/folders/${folderId}/move`, {
+    const user = getUser();
+    if (!user || !user.id) {
+        throw new Error('User ID not found. Please log in again.');
+    }
+    const response = await fetch(`${CONFIG.METADATA_API_URL}/api/folders/${folderId}/move`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ targetFolderId })
+        body: JSON.stringify({ targetFolderId, userId: user.id })
     });
 
     const data = await response.json();
@@ -203,7 +220,11 @@ async function moveFolder(folderId, targetFolderId) {
 // Delete folder
 async function deleteFolder(folderId) {
     const token = getToken();
-    const response = await fetch(`${CONFIG.FILE_API_URL}/api/files/folders/${folderId}`, {
+    const user = getUser();
+    if (!user || !user.id) {
+        throw new Error('User ID not found. Please log in again.');
+    }
+    const response = await fetch(`${CONFIG.METADATA_API_URL}/api/folders/${folderId}?userId=${user.id}`, {
         method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${token}`

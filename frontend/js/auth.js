@@ -4,7 +4,7 @@ const API_BASE_URL = typeof CONFIG !== 'undefined' ? CONFIG.AUTH_API_URL : "http
 
 // Register
 async function register(name, email, password) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -23,7 +23,7 @@ async function register(name, email, password) {
 
 // Login
 async function login(email, password) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -47,7 +47,7 @@ async function getProfile() {
     throw new Error("No token found");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+  const response = await fetch(`${API_BASE_URL}/auth/profile`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,

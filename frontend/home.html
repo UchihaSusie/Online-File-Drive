@@ -487,7 +487,7 @@
           const usedText = totalSize >= 1024 * 1024 
             ? (totalSize / (1024 * 1024)).toFixed(1) + ' MB'
             : (totalSize / 1024).toFixed(1) + ' KB';
-          document.getElementById('storageText').textContent = `${usedText} of 15 GB used`;
+          document.getElementById('storageText').textContent = `${usedText} of 5 GB used`;
         } catch (error) {
           console.error('Failed to load storage info:', error);
           document.getElementById('storageText').textContent = '';
