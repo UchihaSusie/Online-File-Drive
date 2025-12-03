@@ -62,7 +62,7 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-app.post('/api/auth/register', async (req, res) => {
+app.post('/auth/register', async (req, res) => {
     try {
         const { email, password, name } = req.body;
 
@@ -140,7 +140,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
 
@@ -197,7 +197,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-app.get('/api/auth/profile', authenticateToken, async (req, res) => {
+app.get('/auth/profile', authenticateToken, async (req, res) => {
     try {
         const result = await docClient.send(new GetCommand({
             TableName: USERS_TABLE,
