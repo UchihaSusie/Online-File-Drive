@@ -41,7 +41,10 @@ exports.handler = async (event) => {
 
       // 1) call metadata-service
       const metaRes = await axios.get(`${metadataSvc}/api/metadata/${fileId}`, {
-        headers: { Authorization: headers.Authorization || "" }
+        headers: {
+          Authorization: headers.authorization || headers.Authorization || "",
+          "x-user-id": headers["x-user-id"] || headers["X-User-Id"] || ""
+        }
       });
       const metadata = metaRes.data.metadata;
 
@@ -93,7 +96,13 @@ exports.handler = async (event) => {
       const fileId = getRes.Item.fileId;
 
       // 2) read metadata to build S3 key
-      const metaRes = await axios.get(`${metadataSvc}/api/metadata/${fileId}`);
+      const metaRes = await axios.get(`${metadataSvc}/api/metadata/${fileId}`, {
+        headers: {
+          // share link is public, so pass empty auth
+          Authorization: "",
+          "x-user-id": ""   // public access, no user id needed
+        }
+      });
       const metadata = metaRes.data.metadata;
 
       const userId = metadata.userId;

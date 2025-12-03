@@ -22,12 +22,11 @@ class ShareServiceStack extends Stack {
       code: lambda.Code.fromAsset('lambda'),
       environment: {
         TABLE_NAME: shareTable.tableName,
-        FILE_SERVICE_URL: process.env.FILE_SERVICE_URL,
-        BUCKET_NAME: process.env.BUCKET_NAME,        // NEW
+        FILE_SERVICE_URL: this.node.tryGetContext("FILE_SERVICE_URL"),
+        BUCKET_NAME: this.node.tryGetContext("BUCKET_NAME"),
       }
     });
 
-    // allow Lambda to read/write DynamoDB
     shareTable.grantReadWriteData(shareHandler);
 
     shareHandler.addToRolePolicy(
@@ -40,17 +39,31 @@ class ShareServiceStack extends Stack {
     // 3. API Gateway
     const api = new apigateway.RestApi(this, 'ShareApi', {
       restApiName: 'ShareService',
-      description: 'Public file sharing service.'
+      description: 'Public file sharing service.',
+      defaultCorsPreflightOptions: {
+        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowMethods: apigateway.Cors.ALL_METHODS,
+        allowHeaders: ['Content-Type', 'Authorization', 'x-user-id'],
+      },
     });
 
+    // /share
     const shareResource = api.root.addResource('share');
 
     // POST /share
-    shareResource.addMethod('POST', new apigateway.LambdaIntegration(shareHandler));
+    shareResource.addMethod(
+      'POST',
+      new apigateway.LambdaIntegration(shareHandler)
+    );
+
+    // /share/{publicId}
+    const publicIdResource = shareResource.addResource('{publicId}');
 
     // GET /share/{publicId}
-    const publicIdResource = shareResource.addResource('{publicId}');
-    publicIdResource.addMethod('GET', new apigateway.LambdaIntegration(shareHandler));
+    publicIdResource.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(shareHandler)
+    );
   }
 }
 
