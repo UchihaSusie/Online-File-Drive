@@ -46,6 +46,32 @@
             </div>
           </div>
           <div class="filters">
+            <div class="sort-dropdown" id="recentDropdown" style="margin-right: 10px;">
+              <button class="sort-trigger" id="recentTrigger">
+                <span id="recentLabel">Recent Files</span>
+                <span class="sort-arrow">▼</span>
+              </button>
+              <div class="sort-menu" id="recentMenu">
+                <div class="sort-option" data-days="0" data-clear="true">
+                  <span>All Files</span>
+                </div>
+                <div class="sort-category">
+                  <div class="sort-category-title">Recent</div>
+                  <div class="sort-option" data-days="3">
+                    <span>Last 3 Days</span>
+                  </div>
+                  <div class="sort-option" data-days="7">
+                    <span>Last 7 Days</span>
+                  </div>
+                  <div class="sort-option" data-days="30">
+                    <span>Last 30 Days</span>
+                  </div>
+                  <div class="sort-option" data-days="90">
+                    <span>Last 3 Months</span>
+                  </div>
+                </div>
+              </div>
+            </div>
             <!-- Sort dropdown with submenu -->
             <div class="sort-dropdown" id="sortDropdown">
               <button class="sort-trigger" id="sortTrigger">
@@ -498,6 +524,11 @@
 
       // Render file and folder list
       async function renderFileList(folderId = null) {
+        if (document.getElementById('recentLabel')) {
+          document.getElementById('recentLabel').textContent = 'Recent Files';
+        }
+        document.getElementById('recentDropdown').style.display = 'block';
+
         const fileListContainer = document.getElementById("fileList");
         fileListContainer.innerHTML = "";
 
@@ -900,13 +931,11 @@
       // Create new folder
       async function createNewFolder(folderName) {
         try {
-          // Call real API to create folder
           const parentId = currentFolderId || 'root';
           await createFolder(folderName, parentId);
           
           console.log(`Folder "${folderName}" created successfully`);
-          
-          // Refresh file list
+
           await renderFileList(currentFolderId);
         } catch (error) {
           alert(`Failed to create folder: ${error.message}`);
@@ -919,51 +948,35 @@
         const modal = document.getElementById("shareModal");
         const linkInput = document.getElementById("shareLinkInput");
 
-        // Simulate calling backend API to get share token
-        // Should actually call: const response = await fetch(`/api/share/link/create`, {...})
-        // Here we simulate token generation
-        const shareToken = await generateShareToken(item);
-
-        // Build share link
-        const shareLink = `http://localhost:8080/share/link/${shareToken}`;
+        if (item.type === 'folder') {
+          alert('Folders cannot be shared. Please share individual files.');
+          return;
+        }
 
         // Display link
         if (linkInput) {
-          linkInput.value = shareLink;
+          linkInput.value = 'Creating share link...';
           linkInput.style.display = "block";
         }
 
         if (modal) {
           modal.style.display = "flex";
         }
-      }
 
-      // Generate share token
-      async function generateShareToken(item) {
-        // Simulate API call delay
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        // Generate a mock token (should actually be returned by backend)
-        // Use file/folder ID and timestamp to generate unique token
-        const tokenData = `${item.id}_${Date.now()}_${Math.random()
-          .toString(36)
-          .substr(2, 9)}`;
-        const token = btoa(tokenData).replace(/[+/=]/g, (m) => {
-          return { "+": "-", "/": "_", "=": "" }[m];
-        });
-
-        // Store token locally (should actually be stored by backend)
-        if (!window.shareTokens) {
-          window.shareTokens = {};
+        try {
+          const response = await createShareLink(item.id);
+          const shareLink = response.url;
+          if (linkInput) {
+            linkInput.value = shareLink;
+          }
+          return shareLink;
+        } catch (error) {
+          console.error('Failed to create share link:', error);
+          if (linkInput) {
+            linkInput.value = `Error: ${error.message}`;
+          }
+          alert(`Failed to create share link: ${error.message}`);
         }
-        window.shareTokens[token] = {
-          itemId: item.id,
-          itemName: item.name,
-          itemType: item.type,
-          createdAt: new Date().toISOString(),
-        };
-
-        return token;
       }
 
       // Copy link button
@@ -1134,8 +1147,21 @@
         document.getElementById('searchBar').value = '';
         document.getElementById('searchClearBtn').style.display = 'none';
         document.getElementById('sortDropdown').style.display = 'block';
+        document.getElementById('recentDropdown').style.display = 'block';
+        recentLabel.textContent = 'Recent Files'; 
         updateToolbarTitle("My Drive");
         await renderFileList(currentFolderId);
+      });
+
+      // Home Link
+      document.getElementById('homeLink').addEventListener('click', async () => {
+        currentFolderId = null;
+        document.getElementById('searchBar').value = '';
+        document.getElementById('sortDropdown').style.display = 'block';
+        document.getElementById('recentDropdown').style.display = 'block';
+        recentLabel.textContent = 'Recent Files';
+        updateToolbarTitle('My Drive');
+        await renderFileList(null);
       });
 
       // ========================================
@@ -1152,15 +1178,13 @@
         sortDropdown.classList.toggle('open');
       });
 
-      // Close dropdown when clicking outside
       document.addEventListener('click', (e) => {
         if (!sortDropdown.contains(e.target)) {
           sortDropdown.classList.remove('open');
         }
       });
 
-      // Handle sort option click
-      document.querySelectorAll('.sort-option').forEach(option => {
+      document.querySelectorAll('#sortMenu .sort-option').forEach(option => {
         option.addEventListener('click', async () => {
           const sortBy = option.dataset.sort;
           const direction = option.dataset.direction;
@@ -1169,7 +1193,8 @@
           currentSortBy = sortBy;
           currentSortDirection = direction;
           
-          // Update UI - clear all checks
+          if (!sortBy || !direction) return;
+          
           document.querySelectorAll('.sort-check').forEach(check => {
             check.textContent = '';
           });
@@ -1182,12 +1207,11 @@
           }
           
           // Update all options active state
-          document.querySelectorAll('.sort-option').forEach(opt => {
+          document.querySelectorAll('#sortMenu .sort-option').forEach(opt => {
             opt.classList.remove('active');
           });
           option.classList.add('active');
           
-          // Update label
           const labelKey = `${sortBy}-${direction}`;
           sortLabel.textContent = sortLabels[labelKey] || 'Sort';
           
@@ -1196,6 +1220,100 @@
           
           // Refresh file list with new sort
           await renderFileList(currentFolderId);
+        });
+      });
+
+      // ========================================
+      // Recent Files Dropdown Functionality
+      // ========================================
+      const recentDropdown = document.getElementById('recentDropdown');
+      const recentTrigger = document.getElementById('recentTrigger');
+      const recentMenu = document.getElementById('recentMenu');
+      const recentLabel = document.getElementById('recentLabel');
+
+      recentTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        recentDropdown.classList.toggle('open');
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!recentDropdown.contains(e.target)) {
+          recentDropdown.classList.remove('open');
+        }
+      });
+
+      document.querySelectorAll('#recentMenu .sort-option').forEach(option => {
+        option.addEventListener('click', async () => {
+          const days = parseInt(option.dataset.days);
+          const isClear = option.dataset.clear === 'true';
+          if (!isClear && (isNaN(days) || days === 0)) return;
+
+          const labelText = option.querySelector('span').textContent;
+
+          if (isClear) {
+            recentLabel.textContent = 'Recent Files';
+            recentDropdown.classList.remove('open');
+            document.getElementById('sortDropdown').style.display = 'block';
+            document.getElementById('recentDropdown').style.display = 'block';
+            updateToolbarTitle("My Drive");
+            await renderFileList(currentFolderId);
+            return;
+          }
+          
+          recentLabel.textContent = labelText;
+
+          recentDropdown.classList.remove('open');
+
+          const fileListContainer = document.getElementById('fileList');
+          fileListContainer.innerHTML = '';
+          const loadingDiv = document.createElement("div");
+          loadingDiv.className = "empty-state";
+          loadingDiv.textContent = "Loading recent files...";
+          fileListContainer.appendChild(loadingDiv);
+          
+          try {
+            const response = await getRecentFiles(days);
+            const filesRaw = response.data?.files || response.files || [];
+
+            loadingDiv.remove();
+            
+            updateToolbarTitle(`Recent Files (${labelText})`);
+            
+            document.getElementById('sortDropdown').style.display = 'none';
+            
+            const files = filesRaw
+              .filter(f => {
+                if (f.type === 'folder') return false;
+                if (!f.filename || !f.fileId) return false;
+                if (!f.mimeType && !f.size) return false;
+                return true;
+              })
+              .map(f => ({
+                id: f.fileId,
+                name: f.filename,
+                type: getFileType(f.mimeType),
+                size: f.size || 0,
+                uploadDate: f.createdAt || f.updatedAt,
+                icon: getFileIcon(f.mimeType),
+                owner: user.name,
+                folderId: f.folderId
+              }));
+            
+            if (files.length === 0) {
+              const emptyState = document.createElement("div");
+              emptyState.className = "empty-state";
+              emptyState.textContent = `No files found in the last ${days} days`;
+              fileListContainer.appendChild(emptyState);
+            } else {
+              files.forEach((item) => {
+                const fileItem = createFileItem(item);
+                fileListContainer.appendChild(fileItem);
+              });
+            }
+          } catch (error) {
+            console.error('Failed to load recent files:', error);
+            loadingDiv.textContent = `Failed to load recent files: ${error.message}`;
+          }
         });
       });
 

@@ -330,3 +330,28 @@ async function getFileStats() {
     return data;
 }
 
+async function createShareLink(fileId) {
+    const token = getToken();
+    const user = getUser();
+    
+    if (!user || !user.id) {
+        throw new Error('User ID not found. Please log in again.');
+    }
+    
+    const response = await fetch(`${CONFIG.SHARE_API_URL}/share`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'x-user-id': user.id,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ fileId })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to create share link');
+    }
+    return data;
+}
+

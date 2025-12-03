@@ -8,7 +8,10 @@ const CONFIG = {
     
     // Metadata Service (Search, Sort - can call directly for search)
     // Use AWS deployed URL or local
-    METADATA_API_URL: "https://votmaqe624.execute-api.us-east-1.amazonaws.com/prod"
+    METADATA_API_URL: "https://votmaqe624.execute-api.us-east-1.amazonaws.com/prod",
+
+    SHARE_API_URL: "https://votmaqe624.execute-api.us-east-1.amazonaws.com/prod"
+
 };
 
 // Export for use in other files

@@ -206,6 +206,11 @@ body {
   border-radius: 5px;
 }
 
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;  
+}
 /* Sort Dropdown Styles */
 .sort-dropdown {
   position: relative;
