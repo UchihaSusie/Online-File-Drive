@@ -10,7 +10,7 @@ const CONFIG = {
     // Use AWS deployed URL or local
     METADATA_API_URL: "https://votmaqe624.execute-api.us-east-1.amazonaws.com/prod",
 
-    SHARE_API_URL: "https://votmaqe624.execute-api.us-east-1.amazonaws.com/prod"
+    SHARE_API_URL: "https://ao0s27pg54.execute-api.us-east-1.amazonaws.com/prod"
 
 };
 

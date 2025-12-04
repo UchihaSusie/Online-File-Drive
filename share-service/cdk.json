@@ -16,7 +16,10 @@
   },
   "context": {
     "FILE_SERVICE_URL": "https://votmaqe624.execute-api.us-east-1.amazonaws.com/prod",
-    "BUCKET_NAME": "cloud-drive-files",
+    "BUCKET_NAME": "6620-cloud-drive-files-577885025398",
+    "BUCKET_REGION": "us-west-2",
+    "JWT_SECRET": "super-long-random-secret",
+    
     
     "@aws-cdk/aws-signer:signingProfileNamePassedToCfn": true,
     "@aws-cdk/aws-ecs-patterns:secGroupsDisablesImplicitOpenListener": true,

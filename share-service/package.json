@@ -19,6 +19,7 @@
     "aws-cdk-lib": "^2.215.0",
     "axios": "^1.13.2",
     "constructs": "^10.4.3",
+    "jsonwebtoken": "^9.0.2",
     "uuid": "^13.0.0"
   }
 }

@@ -1,11 +1,10 @@
 const axios = require("axios");
+const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
 
-// AWS SDK for S3 presigned URL
 const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
-// DynamoDB
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const {
   DynamoDBDocumentClient,
@@ -14,10 +13,25 @@ const {
 } = require("@aws-sdk/lib-dynamodb");
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient());
-const s3 = new S3Client({ region: process.env.AWS_REGION || "us-east-1" });
+const s3 = new S3Client({
+  region: process.env.BUCKET_REGION,
+  forcePathStyle: false,
+});
 
+const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "Content-Type,Authorization,X-User-Id,X-Amz-Date,X-Api-Key,X-Amz-Security-Token",
+  "Access-Control-Allow-Methods": "GET,POST,OPTIONS"
+};
+
+// ---------------------------------------
+// Handler
+// ---------------------------------------
 exports.handler = async (event) => {
-  console.log("Incoming event:", JSON.stringify(event));
+  console.log("Event:", JSON.stringify(event));
 
   const tableName = process.env.TABLE_NAME;
   const metadataSvc = process.env.FILE_SERVICE_URL;
@@ -27,9 +41,18 @@ exports.handler = async (event) => {
   const rawPath = event.resource;
   const headers = event.headers || {};
 
-  // ---------------------------------------------------------------------------
-  // 1. POST /share → owner creates a share link
-  // ---------------------------------------------------------------------------
+  // Options Preflight
+  if (method === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: ""
+    };
+  }
+
+  // ------------------------------------
+  // POST /share -> Create share link
+  // ------------------------------------
   if (method === "POST" && rawPath === "/share") {
     try {
       const body = JSON.parse(event.body || "{}");
@@ -39,19 +62,24 @@ exports.handler = async (event) => {
       const userId = headers["x-user-id"] || headers["X-User-Id"];
       if (!userId) return res(401, { message: "Missing x-user-id header" });
 
-      // 1) call metadata-service
-      const metaRes = await axios.get(`${metadataSvc}/api/metadata/${fileId}`, {
-        headers: {
-          Authorization: headers.authorization || headers.Authorization || "",
-          "x-user-id": headers["x-user-id"] || headers["X-User-Id"] || ""
+      // Call metadata service (owner validation)
+      const metaRes = await axios.get(
+        `${metadataSvc}/api/metadata/${fileId}`,
+        {
+          headers: {
+            Authorization: headers.Authorization || headers.authorization || "",
+            "x-user-id": userId
+          }
         }
-      });
+      );
+
       const metadata = metaRes.data.metadata;
 
-      if (metadata.userId !== userId)
+      if (metadata.userId !== userId) {
         return res(403, { message: "You do not own this file" });
+      }
 
-      // 2) save share (only fileId → share-service handles public)
+      // Insert share record
       const publicId = uuidv4();
       await ddb.send(
         new PutCommand({
@@ -65,53 +93,69 @@ exports.handler = async (event) => {
         })
       );
 
+      // ------------------------
+      // Generate JWT token
+      // ------------------------
+      const token = jwt.sign(
+        {
+          fileId,
+          filename: metadata.filename,
+          version: metadata.currentVersion,
+          userId: metadata.userId
+        },
+        JWT_SECRET,
+        { expiresIn: "1d" }
+      );
+
       const host = headers["Host"];
       const stage = event.requestContext.stage;
-      const shareUrl = `https://${host}/${stage}/share/${publicId}`;
+      const url = `https://${host}/${stage}/share/${publicId}?token=${token}`;
 
-      return res(200, { message: "Share link created", publicId, url: shareUrl });
-
+      return res(200, {
+        message: "Share link created",
+        publicId,
+        url
+      });
     } catch (err) {
       console.error("POST /share ERROR:", err);
       return res(500, { message: "Internal error", error: err.toString() });
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // 2. GET /share/{publicId} → generate S3 presigned URL
-  // ---------------------------------------------------------------------------
-  if (method === "GET" && rawPath === "/share/{publicId}") {
+  // ------------------------------------
+  // GET /share/{publicId}?token=xxxx
+  // ------------------------------------
+  if (method === "GET" && event.path && event.path.startsWith("/share/")) {
     try {
       const publicId = event.pathParameters.publicId;
 
-      // 1) lookup share record
-      const getRes = await ddb.send(
+      // Verify share exists
+      const shareRes = await ddb.send(
         new GetCommand({
           TableName: tableName,
           Key: { publicId }
         })
       );
-      if (!getRes.Item) return res(404, { message: "Share link not found" });
 
-      const fileId = getRes.Item.fileId;
+      if (!shareRes.Item) {
+        return res(404, { message: "Share link not found" });
+      }
 
-      // 2) read metadata to build S3 key
-      const metaRes = await axios.get(`${metadataSvc}/api/metadata/${fileId}`, {
-        headers: {
-          // share link is public, so pass empty auth
-          Authorization: "",
-          "x-user-id": ""   // public access, no user id needed
-        }
-      });
-      const metadata = metaRes.data.metadata;
+      // Validate JWT
+      const token = event.queryStringParameters?.token;
+      if (!token) return res(401, { message: "Missing token" });
 
-      const userId = metadata.userId;
-      const version = metadata.currentVersion;
-      const filename = metadata.filename;
+      let decoded;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET);
+      } catch (e) {
+        return res(403, { message: "Invalid or expired token" });
+      }
 
+      const { fileId, version, filename, userId } = decoded;
+
+      // Generate S3 URL
       const key = `${userId}/${fileId}/v${version}/${filename}`;
-
-      // 3) generate presigned URL
       const command = new GetObjectCommand({
         Bucket: bucket,
         Key: key
@@ -119,13 +163,14 @@ exports.handler = async (event) => {
 
       const signedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
 
-      // 4) redirect user
       return {
         statusCode: 302,
-        headers: { Location: signedUrl },
+        headers: {
+          ...corsHeaders,
+          Location: signedUrl
+        },
         body: ""
       };
-
     } catch (err) {
       console.error("GET /share/{publicId} ERROR:", err);
       return res(500, { message: "Internal error", error: err.toString() });
@@ -135,12 +180,14 @@ exports.handler = async (event) => {
   return res(400, { message: "Invalid request" });
 };
 
-
-// Response helper
+// ------------------------------------
 function res(code, body) {
   return {
     statusCode: code,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...corsHeaders
+    },
     body: JSON.stringify(body)
   };
 }
